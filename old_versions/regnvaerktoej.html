@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regnværktøj – DMI kommune</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#17212b;background:#f4f7fa}
+body{max-width:1050px;margin:28px auto;padding:0 18px}
+h1{margin-bottom:6px} .muted{color:#5d6b78}
+.card{background:white;border:1px solid #dce4eb;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 2px 8px #18324a08}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+label{display:block;font-weight:600;margin:0 0 7px}
+input,select,button{font:inherit;padding:10px;border:1px solid #bdc9d4;border-radius:8px;width:100%;box-sizing:border-box;background:white}
+button{background:#1769aa;color:white;border:0;font-weight:650;cursor:pointer}
+button.secondary{background:#e8eef4;color:#17324b}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.actions button{width:auto}
+.status{padding:12px;border-radius:8px;background:#eef5fb;margin-top:12px;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:9px;border-bottom:1px solid #e4eaf0}
+th:first-child,td:first-child{text-align:left}
+th{background:#f4f7fa}
+.big{font-size:1.55rem;font-weight:750}
+.small{font-size:.9rem}
+.page-nav{display:flex;gap:8px;margin:18px 0}
+.page-nav button{width:auto}
+.page-nav button[aria-pressed="false"]{background:#e8eef4;color:#17324b}
+.quality{display:inline-block;padding:3px 9px;border-radius:999px;font-weight:650;white-space:nowrap}
+.quality-good{color:#17643a;background:#e4f4e9}
+.quality-medium{color:#755500;background:#fff2cc}
+.quality-low{color:#9e2929;background:#fde7e7}
+.quality-unknown{color:#465564;background:#e8eef4}
+.quality[title]{cursor:help}
+.chart-scroll{overflow-x:auto;padding:8px 0 4px}
+.chart-bars{min-width:max(100%,620px);display:flex;align-items:stretch;gap:8px;height:270px;padding:12px 6px 0;box-sizing:border-box}
+.chart-item{flex:1 0 48px;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}
+.chart-value{font-size:.75rem;color:#5d6b78;white-space:nowrap}
+.chart-bar-track{height:180px;width:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid #bdc9d4}
+.chart-bar{width:min(32px,80%);min-height:2px;background:#1769aa;border-radius:4px 4px 0 0}
+.chart-year{font-size:.8rem}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<h1>Regnværktøj – kommunal nedbør</h1>
+<p class="muted">Hent historisk nedbør fra DMI’s Climate Data API og beregn gennemsnitlig årsnedbør.</p>
+
+<nav class="page-nav" aria-label="Værktøjets sider">
+<button type="button" class="secondary" data-page="tool" aria-pressed="true">Regnværktøj</button>
+<button type="button" class="secondary" data-page="method" aria-pressed="false">Metodebeskrivelse</button>
+</nav>
+
+<main id="tool-page">
+<div class="card">
+<h2>1. Vælg beregning</h2>
+<div class="grid">
+<div><label for="muni">Kommune</label><select id="muni"></select></div>
+<div><label for="start">Første år</label><input id="start" type="number" min="1900" max="2100" value="2016"></div>
+<div><label for="end">Sidste år</label><input id="end" type="number" min="1900" max="2100" value="2025"></div>
+</div>
+<div class="actions"><button id="run">Hent data og beregn</button><button class="secondary" id="demo">Vis eksempeldata (2016–2025)</button></div>
+<div id="status" class="status">Klar. Tryk “Hent data og beregn”.</div>
+<p class="small muted">Data hentes direkte fra DMI i browseren. Hvis DMI blokerer browserkald (CORS), kan du bruge eksempeldata eller importere CSV nedenfor.</p>
+</div>
+
+<div class="card hidden" id="results">
+<h2>2. Resultat</h2>
+<div class="grid">
+<div><div class="muted">Gennemsnitlig årsnedbør</div><div class="big" id="mean">—</div></div>
+<div><div class="muted">År med data</div><div class="big" id="count">—</div></div>
+</div>
+<table><thead><tr><th>År</th><th>Nedbør (mm)</th><th>Datakvalitet</th></tr></thead><tbody id="tbody"></tbody></table>
+<p class="small muted">Farvemærket viser datadækningen. Hold musen over mærket for dækningstal og DMI-kontrolstatus.</p>
+<h3>Årlig nedbør</h3>
+<div class="chart-scroll"><div id="chart" class="chart-bars" role="list" aria-label="Søjlediagram over årlig nedbør"></div></div>
+<div class="actions"><button class="secondary" id="export">Download resultater som CSV</button></div>
+</div>
+
+<div class="card">
+<h2>Alternativ: Importér årsdata fra CSV</h2>
+<p class="small muted">CSV skal have kolonnerne <code>year</code> og <code>annual_sum_mm</code> (som i output fra Python-scriptet). Brug semikolon eller komma som separator.</p>
+<input id="file" type="file" accept=".csv,text/csv">
+<div class="actions"><button class="secondary" id="import">Importér CSV og beregn</button></div>
+</div>
+
+<div class="card small muted">
+<strong>Bemærk:</strong> Dette er et enkelt-fil-værktøj, ikke en officiel DMI-beregning. API-data og datakvalitet bør kontrolleres, især ved længere perioder. Årsnedbør beregnet fra daglige værdier kan have manglende/ugyldige observationer.
+</div>
+</main>
+
+<main id="method-page" class="hidden">
+<section class="card">
+<h2>Metodebeskrivelse</h2>
+<h3>Datakilde og beregning</h3>
+<p>Værktøjet henter daglige nedbørsværdier fra DMI’s Climate Data API for den valgte kommune og periode. Årsnedbøren beregnes som summen af årets daglige værdier i millimeter. Gennemsnittet er det aritmetiske gennemsnit af de viste års summer.</p>
+<p>Dage uden en numerisk værdi tælles ikke med i summen. Derfor kan en årssum med manglende dage være lavere end den faktiske nedbør. Skudår regnes med 366 forventede dage; øvrige år med 365.</p>
+<h3>Datakvalitet</h3>
+<p>Farvemærket viser datadækningen: <span class="quality quality-good">God</span> mindst 99 %, <span class="quality quality-medium">Middel</span> mindst 90 % og under 99 %, og <span class="quality quality-low">Lav</span> under 90 %. Dækningen er antallet af dage med en numerisk værdi divideret med årets forventede antal dage.</p>
+<p>Mærket bygger på dækning, ikke på en selvstændig kvalitetsvurdering af målingerne. Hold musen over mærket (eller fokuser det med tastaturet) for at se dækningstal og DMI’s kontrolstatus. DMI-status vises separat og ændrer ikke farvemærket. Hvis data er importeret fra en CSV uden kvalitetsoplysninger eller vises som eksempeldata, står der “Ikke oplyst”.</p>
+<h3>Begrænsninger</h3>
+<p>Årssummer med ufuldstændig dækning bør sammenlignes med forsigtighed. Værktøjet er ikke en officiel DMI-beregning og foretager ikke en selvstændig kontrol eller korrektion af DMI’s observationer.</p>
+</section>
+</main>
+
+<script>
+const municipalities = [
+["0101","København"],["0147","Frederiksberg"],["0151","Ballerup"],["0153","Brøndby"],["0155","Dragør"],["0157","Gentofte"],["0159","Gladsaxe"],["0161","Glostrup"],["0163","Herlev"],["0165","Albertslund"],["0167","Hvidovre"],["0169","Høje-Taastrup"],["0173","Lyngby-Taarbæk"],["0175","Rødovre"],["0183","Ishøj"],["0185","Tårnby"],["0187","Vallensbæk"],["0190","Furesø"],
+["0201","Allerød"],["0210","Fredensborg"],["0217","Helsingør"],["0219","Hillerød"],["0223","Hørsholm"],["0230","Rudersdal"],["0240","Egedal"],["0250","Frederikssund"],["0253","Greve"],["0259","Køge"],["0260","Halsnæs"],["0265","Roskilde"],["0269","Solrød"],["0270","Gribskov"],
+["0306","Odsherred"],["0316","Holbæk"],["0320","Faxe"],["0326","Kalundborg"],["0329","Ringsted"],["0330","Slagelse"],["0336","Stevns"],["0340","Sorø"],["0350","Lejre"],["0360","Lolland"],["0370","Næstved"],["0376","Guldborgsund"],["0390","Vordingborg"],["0400","Bornholm"],
+["0410","Middelfart"],["0420","Assens"],["0430","Faaborg-Midtfyn"],["0440","Kerteminde"],["0450","Nyborg"],["0461","Odense"],["0479","Svendborg"],["0480","Nordfyns"],["0482","Langeland"],["0492","Ærø"],
+["0510","Haderslev"],["0530","Billund"],["0540","Sønderborg"],["0550","Tønder"],["0561","Esbjerg"],["0563","Fanø"],["0573","Varde"],["0575","Vejen"],["0580","Aabenraa"],
+["0607","Fredericia"],["0615","Horsens"],["0621","Kolding"],["0630","Vejle"],["0657","Herning"],["0661","Holstebro"],["0665","Lemvig"],["0671","Struer"],
+["0706","Syddjurs"],["0707","Norddjurs"],["0710","Favrskov"],["0727","Odder"],["0730","Randers"],["0740","Silkeborg"],["0741","Samsø"],["0746","Skanderborg"],["0751","Aarhus"],["0756","Ikast-Brande"],["0760","Ringkøbing-Skjern"],["0766","Hedensted"],["0773","Morsø"],["0779","Skive"],["0787","Thisted"],["0791","Viborg"],
+["0810","Brønderslev"],["0813","Frederikshavn"],["0820","Vesthimmerlands"],["0825","Læsø"],["0840","Rebild"],["0846","Mariagerfjord"],["0849","Jammerbugt"],["0851","Aalborg"],["0860","Hjørring"]
+];
+// IDs and names match the municipalities returned by DMI's municipalityValue API.
+const select=document.getElementById('muni');
+municipalities.sort((a,b)=>a[1].localeCompare(b[1],'da')).forEach(([id,name])=>{let o=document.createElement('option');o.value=id;o.textContent=name+' ('+id+')';select.append(o)});
+select.value="0751";
+let rows=[];
+const status=document.getElementById('status');
+const fmt=(n,d=1)=>Number(n).toLocaleString('da-DK',{maximumFractionDigits:d,minimumFractionDigits:d});
+document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>{
+ const showTool=button.dataset.page==='tool';
+ document.getElementById('tool-page').classList.toggle('hidden',!showTool);
+ document.getElementById('method-page').classList.toggle('hidden',showTool);
+ document.querySelectorAll('[data-page]').forEach(pageButton=>{
+  pageButton.setAttribute('aria-pressed',String(pageButton===button));
+ });
+}));
+function render(data){
+ rows=data.filter(x=>Number.isFinite(+x.mm)).sort((a,b)=>a.year-b.year);
+ if(!rows.length){status.textContent='Ingen gyldige årsdata fundet.';return}
+ const mean=rows.reduce((s,x)=>s+x.mm,0)/rows.length;
+ document.getElementById('mean').textContent=fmt(mean)+' mm/år';
+ document.getElementById('count').textContent=rows.length;
+ const tbody=document.getElementById('tbody');
+ tbody.textContent='';
+ const chart=document.getElementById('chart');
+ chart.textContent='';
+ const maxMm=Math.max(...rows.map(x=>x.mm),1);
+ for(const row of rows){
+  const tr=document.createElement('tr');
+  for(const value of [row.year,fmt(row.mm)]){
+   const td=document.createElement('td');
+   td.textContent=value;
+   tr.append(td);
+  }
+  const qualityCell=document.createElement('td');
+  const quality=document.createElement('span');
+  const qualityInfo=getQuality(row);
+  quality.className=`quality quality-${qualityInfo.level}`;
+  quality.textContent=qualityInfo.label;
+  if(qualityInfo.details){
+   quality.title=qualityInfo.details;
+   quality.tabIndex=0;
+   quality.setAttribute('aria-label',`${qualityInfo.label}. ${qualityInfo.details}`);
+  }
+  qualityCell.append(quality);
+  tr.append(qualityCell);
+  tbody.append(tr);
+
+  const item=document.createElement('div');
+  item.className='chart-item';
+  item.setAttribute('role','listitem');
+  item.setAttribute('aria-label',`${row.year}: ${fmt(row.mm)} mm`);
+  const value=document.createElement('span');
+  value.className='chart-value';
+  value.textContent=fmt(row.mm);
+  const track=document.createElement('div');
+  track.className='chart-bar-track';
+  const bar=document.createElement('div');
+  bar.className='chart-bar';
+  bar.style.height=`${Math.max(row.mm/maxMm*100,1)}%`;
+  bar.title=`${row.year}: ${fmt(row.mm)} mm`;
+  track.append(bar);
+  const year=document.createElement('span');
+  year.className='chart-year';
+  year.textContent=row.year;
+  item.append(value,track,year);
+  chart.append(item);
+ }
+ chart.style.minWidth=`max(100%, ${Math.max(620,rows.length*56)}px)`;
+ document.getElementById('results').classList.remove('hidden');
+ document.getElementById('export').disabled=false;
+ status.textContent=`Beregning færdig: ${rows.length} år. Gennemsnit ${fmt(mean)} mm/år.`;
+}
+function getQuality(row){
+ const hasDays=Number.isFinite(row.count)&&Number.isFinite(row.expected)&&row.expected>0;
+ const percentage=hasDays?row.count/row.expected*100:row.coveragePct;
+ const qc=row.qcCounts?Object.entries(row.qcCounts).map(([status,count])=>{
+  if(status==='manual')return `manuelt kontrolleret (${count})`;
+  if(status==='none')return `ikke angivet (${count})`;
+  return `${status} (${count})`;
+ }):[];
+ if(!Number.isFinite(percentage))return {level:'unknown',label:'Ikke oplyst',details:''};
+ const level=percentage>=99?'good':percentage>=90?'medium':'low';
+ const label=level==='good'?'God':level==='medium'?'Middel':'Lav';
+ const dayCount=hasDays?` (${row.count}/${row.expected} dage)`:'';
+ const details=`${fmt(percentage,1)} % dækning${dayCount}; DMI-kontrol: ${qc.length?qc.join(', '):'ikke oplyst'}`;
+ return {level,label,details};
+}
+async function fetchYear(year,muni){
+ const from=`${year}-01-01T00:00:00Z`,to=`${year+1}-01-01T00:00:00Z`;
+ let url=new URL('https://opendataapi.dmi.dk/v2/climateData/collections/municipalityValue/items');
+ url.searchParams.set('municipalityId',muni);url.searchParams.set('parameterId','acc_precip');url.searchParams.set('timeResolution','day');
+ url.searchParams.set('datetime',`${from}/${to}`);url.searchParams.set('limit','1000');
+ let sum=0, count=0, qcCounts={}, next=url.toString(),pages=0;
+ while(next&&pages++<20){
+  const r=await fetch(next);if(!r.ok)throw Error('DMI HTTP '+r.status);
+  const j=await r.json();const feats=j.features||[];
+  for(const f of feats){
+   const p=f.properties||{},v=p.value??p.observation??p.acc_precip;
+   const qc=p.qcStatus||'';
+   if(qc)qcCounts[qc]=(qcCounts[qc]||0)+1;
+   if(v!==null&&v!==undefined&&Number.isFinite(+v)){sum+=+v;count++}
+  }
+  const link=(j.links||[]).find(l=>l.rel==='next');next=link?new URL(link.href,url).toString():null;
+ }
+ const expected=(Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000;
+ return {year,mm:sum,count,expected,qcCounts};
+}
+document.getElementById('run').onclick=async()=>{
+ const a=+document.getElementById('start').value,b=+document.getElementById('end').value,m=select.value;
+ if(!a||!b||b<a||b-a>50){status.textContent='Kontrollér årstal (maks. 50 års interval).';return}
+ status.textContent='Henter DMI-data…';document.getElementById('run').disabled=true;
+ try{let out=[];for(let y=a;y<=b;y++){status.textContent=`Henter ${y}…`;out.push(await fetchYear(y,m))}
+ render(out);status.textContent+='\\nDMI-data blev hentet direkte i browseren. Kontrollér datakvalitet/coverage.';
+ }catch(e){status.textContent='Kunne ikke hente data direkte fra DMI.\\n'+e.message+'\\nMulige årsager: CORS, API-format eller netværk. Brug CSV-import eller Python-scriptet.'}
+ finally{document.getElementById('run').disabled=false}
+};
+document.getElementById('demo').onclick=()=>render([{year:2016,mm:766.7},{year:2017,mm:736.0},{year:2018,mm:531.4},{year:2019,mm:831.9},{year:2020,mm:683.5},{year:2021,mm:733.5},{year:2022,mm:655.6},{year:2023,mm:1040.9},{year:2024,mm:891.8},{year:2025,mm:595.8}]);
+document.getElementById('import').onclick=async()=>{
+ const f=document.getElementById('file').files[0];if(!f){status.textContent='Vælg en CSV-fil først.';return}
+ const text=await f.text(),lines=text.trim().split(/\r?\n/),header=lines.shift(),separator=header.includes(';')?';':',',head=header.toLowerCase().split(separator).map(x=>x.trim());
+ const yi=head.indexOf('year'),mi=head.indexOf('annual_sum_mm');
+ if(yi<0||mi<0){status.textContent='CSV skal indeholde kolonnerne year og annual_sum_mm.';return}
+ const coverageIndex=head.indexOf('data_coverage_pct')>=0?head.indexOf('data_coverage_pct'):head.indexOf('coverage_numeric_pct');
+ const countIndex=head.indexOf('observed_days')>=0?head.indexOf('observed_days'):head.indexOf('numeric_values');
+ const expectedIndex=head.indexOf('expected_days'),qcIndex=head.indexOf('qc_statuses');
+ const out=lines.map(l=>{
+  const c=l.split(separator),row={year:+c[yi],mm:+c[mi]};
+  if(coverageIndex>=0&&c[coverageIndex]!==undefined&&c[coverageIndex].trim()!==''&&Number.isFinite(+c[coverageIndex]))row.coveragePct=+c[coverageIndex];
+  if(countIndex>=0&&expectedIndex>=0&&c[countIndex]!==undefined&&c[expectedIndex]!==undefined&&c[countIndex].trim()!==''&&c[expectedIndex].trim()!==''&&Number.isFinite(+c[countIndex])&&Number.isFinite(+c[expectedIndex])){
+   row.count=+c[countIndex];row.expected=+c[expectedIndex];
+  }
+  if(qcIndex>=0&&c[qcIndex]){
+   row.qcCounts=Object.fromEntries(c[qcIndex].split(/[|,]\s*/).map(entry=>{
+    const [name,count]=entry.split(':');return [name,+count];
+   }).filter(([name,count])=>name&&Number.isFinite(count)));
+  }
+  return row;
+ });
+ render(out);
+};
+document.getElementById('export').onclick=()=>{
+ const csv='year;annual_sum_mm;data_coverage_pct;observed_days;expected_days;qc_statuses\\n'+rows.map(x=>{
+  const coverage=Number.isFinite(x.count)&&Number.isFinite(x.expected)?(x.count/x.expected*100).toFixed(1):'';
+  const qc=x.qcCounts?Object.entries(x.qcCounts).map(([name,count])=>`${name}:${count}`).join(', '):'';
+  return `${x.year};${x.mm.toFixed(1)};${coverage};${x.count??''};${x.expected??''};${qc}`;
+ }).join('\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nedboer_resultat.csv';a.click();URL.revokeObjectURL(a.href);
+};
+</script>
+</body></html>
