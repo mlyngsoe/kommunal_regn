@@ -1,6 +1,6 @@
 # Regnværktøj
 
-A Danish-language browser app for exploring municipal precipitation data from the Danish Meteorological Institute (DMI).
+A Danish-language browser app for exploring municipal precipitation data from the Danish Meteorological Institute (DMI). [Open the hosted app](https://mlyngsoe.github.io/kommunal_regn/).
 
 ## Website
 
@@ -13,17 +13,6 @@ python -m http.server 8000 --directory docs
 ```
 
 Then visit <http://localhost:8000>.
-
-## GitHub Pages deployment
-
-After pushing the repository to GitHub:
-
-1. Open the repository's **Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select the `main` branch and the `/docs` folder, then save.
-4. GitHub will publish the site at `https://<username>.github.io/<repository>/`.
-
-Changes merged into `main` are published automatically.
 
 ## Development workflow
 
