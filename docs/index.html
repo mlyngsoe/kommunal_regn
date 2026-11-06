@@ -106,8 +106,8 @@ tbody tr:hover{background:#f8fbfb}
 .leaflet-container{font:inherit}
 .hidden{display:none}
 @media(max-width:1080px){body{padding:20px 22px 36px}.workspace-grid{grid-template-columns:minmax(250px,290px) minmax(0,1fr)}}
-@media(max-width:760px){body{padding:14px 14px 28px}.site-header{min-height:0;padding:18px;gap:14px;border-radius:14px}.site-logo{height:54px;padding:5px 8px;max-width:34vw}.workspace-grid{grid-template-columns:1fr}.workspace-sidebar{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.workspace-sidebar .note-card{grid-column:1/-1}.workspace-main{min-width:0}.result-layout{grid-template-columns:1fr}.station-toolbar{align-items:flex-start;flex-direction:column}.year-control{width:100%}.station-status{max-width:none}}
-@media(max-width:520px){body{padding:10px 10px 22px}.site-header{align-items:flex-start;flex-direction:column}.site-logo{height:50px;max-width:70vw}.page-nav{width:100%}.page-nav button{flex:1}.workspace-sidebar{grid-template-columns:1fr}.workspace-sidebar .note-card{grid-column:auto}.card{padding:16px}.metric-grid{gap:8px}.metric{padding:12px}.big{font-size:1.4rem}#station-map{height:380px}.map-panel,.ranking-panel{padding:10px}.panel-heading{align-items:flex-start;flex-direction:column}.actions button{width:100%}}
+@media(max-width:760px){body{padding:14px 14px 28px}.site-header{min-height:0;padding:18px;gap:14px;border-radius:14px}.site-logo{height:54px;padding:5px 8px;max-width:34vw}.workspace-grid{grid-template-columns:1fr}.workspace-sidebar{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.workspace-sidebar .note-card{grid-column:1/-1}.workspace-main{min-width:0}.result-layout{grid-template-columns:1fr}.station-toolbar{align-items:flex-start;flex-direction:column}.year-control{width:100%}.station-status{max-width:none}#station-map{height:clamp(420px,58vh,560px)}}
+@media(max-width:520px){body{padding:10px 10px 22px}.site-header{align-items:flex-start;flex-direction:column}.site-logo{height:50px;max-width:70vw}.page-nav{width:100%}.page-nav button{flex:1}.workspace-sidebar{grid-template-columns:1fr}.workspace-sidebar .note-card{grid-column:auto}.card{padding:16px}.metric-grid{gap:8px}.metric{padding:12px}.big{font-size:1.4rem}.map-panel,.ranking-panel{padding:10px}.panel-heading{align-items:flex-start;flex-direction:column}.actions button{width:100%}}
 </style>
 </head>
 <body>
@@ -218,7 +218,7 @@ tbody tr:hover{background:#f8fbfb}
 <p>Dage uden en numerisk værdi tælles ikke med i summen. Derfor kan en årssum med manglende dage være lavere end den faktiske nedbør. Skudår regnes med 366 forventede dage; øvrige år med 365.</p>
 <h3>Valg af regnmålere</h3>
 <p>Når kommunedata er hentet, hentes målestationernes årsværdier for hele det kommunale årsspænd. Kommuneår med mindst 90 % datadækning indgår i sammenligningen; ufuldstændige år indgår ikke, så igangværende år ikke udelukker alle stationer. En station skal have gyldige nedbørsværdier for hvert sammenligningsår med mindst 90 % af årets dage. Kommunens gennemsnitlige årsnedbør og stationens gennemsnitlige årsnedbør beregnes over de samme år. Konkretåret ændrer ikke stationsrangeringen; det viser i stedet stationens nedbør og datadækning for det specifikke år, også hvis året endnu ikke er fuldt. Kun stationer inden for 100 km af DMI’s repræsentative kommunepunkt medregnes; afstand beregnes som storcirkelafstand.</p>
-<p>De tre bedste matches rangeres med et matchindeks: 100 minus halvdelen af den procentvise forskel i periodegennemsnit på en fast 100 mm/år skala og halvdelen af afstanden på en fast 100 km skala. Hver del af indekset begrænses til intervallet 0–100; et højere indeks er bedre. Skalaerne er sammenligningsvalg, ikke en sandsynlighed for repræsentativitet. Tabellen viser periodegennemsnittet, konkretårets værdi og datadækning samt afstanden. Kortet viser målestationerne med en interaktiv kortbaggrund, som kan skiftes mellem Esri World Imagery og OpenStreetMap. Laget “Øvrige egnede målestationer” viser andre stationer end de tre bedste som små prikker; hold musen over en station for dens oplysninger. Baggrundskort kræver internetadgang. Kommunepunktet er en tilnærmelse, ikke en kommunegrænse.</p>
+<p>De tre bedste matches rangeres med et matchindeks: 100 minus halvdelen af den procentvise forskel i periodegennemsnit på en fast 100 mm/år skala og halvdelen af afstanden på en fast 100 km skala. Hver del af indekset begrænses til intervallet 0–100; et højere indeks er bedre. Skalaerne er sammenligningsvalg, ikke en sandsynlighed for repræsentativitet. Tabellen viser periodegennemsnittet, konkretårets værdi og datadækning samt afstanden. Kortet viser målestationerne med en interaktiv kortbaggrund, som kan skiftes mellem ortofoto og OpenStreetMap. Laget “Øvrige egnede målestationer” viser andre stationer end de tre bedste som små prikker; hold musen over en station for dens oplysninger. Baggrundskort kræver internetadgang. Kommunepunktet er en tilnærmelse, ikke en kommunegrænse.</p>
 <p>CSV-downloadet indeholder én række pr. år med kommunens nedbør og nedbør, datadækning og matchoplysninger for alle tre bedste stationer. Ufuldstændige år er med i filen, selv om de udelades fra stationsrangeringen. Filen er semikolonsepareret med dansk decimalkomma og UTF-8-kodning.</p>
 <h3>Datakvalitet</h3>
 <p>Farvemærket viser datadækningen: <span class="quality quality-good">God</span> mindst 99 %, <span class="quality quality-medium">Middel</span> mindst 90 % og under 99 %, og <span class="quality quality-low">Lav</span> under 90 %. Dækningen er antallet af dage med en numerisk værdi divideret med årets forventede antal dage.</p>
@@ -457,21 +457,20 @@ function renderStationMap(result){
  mapStatus.textContent='Kommunegrænsen indlæses…';
  for(const layer of [imagery,openStreetMap]){
   layer.on('tileerror',()=>{
-   mapStatus.textContent='Et kortlag kunne ikke indlæses. Prøv at skifte mellem ortofoto/luftfoto og OpenStreetMap.';
+   mapStatus.textContent='Et kortlag kunne ikke indlæses. Prøv at skifte mellem ortofoto og OpenStreetMap.';
   });
  }
  const municipalityBoundary=L.featureGroup().addTo(currentMap);
  const otherStationsLayer=L.featureGroup();
- const otherStationsBounds=L.latLngBounds([]);
  const overlays={'Kommunegrænse':municipalityBoundary};
  if(result.otherCandidates.length){
   overlays[`Øvrige egnede målestationer (${result.otherCandidates.length})`]=otherStationsLayer;
  }
  imagery.addTo(stationLeafletMap);
  L.control.layers(
-  {'Ortofoto / luftfoto':imagery,'OpenStreetMap':openStreetMap},
+  {'Ortofoto':imagery,'OpenStreetMap':openStreetMap},
   overlays,
-  {collapsed:false}
+  {collapsed:window.matchMedia('(max-width: 760px)').matches}
  ).addTo(stationLeafletMap);
  const center=L.latLng(result.center[1],result.center[0]);
  const bounds=L.latLngBounds([center]);
@@ -493,19 +492,10 @@ function renderStationMap(result){
  });
  result.otherCandidates.forEach(candidate=>{
   const station=L.latLng(candidate.coordinates[1],candidate.coordinates[0]);
-  otherStationsBounds.extend(station);
   L.circleMarker(station,{radius:4,className:'other-station-marker'})
    .bindTooltip(stationDetails(candidate,result),{className:'station-tooltip',sticky:true})
    .addTo(otherStationsLayer);
  });
- if(result.otherCandidates.length){
-  currentMap.on('overlayadd',event=>{
-   if(event.layer!==otherStationsLayer)return;
-   const stationBounds=L.latLngBounds(bounds.getSouthWest(),bounds.getNorthEast());
-   stationBounds.extend(otherStationsBounds);
-   currentMap.fitBounds(stationBounds.pad(.18),{maxZoom:10});
-  });
- }
  stationLeafletMap.fitBounds(bounds.pad(.18),{maxZoom:10});
  requestAnimationFrame(()=>stationLeafletMap?.invalidateSize());
 
