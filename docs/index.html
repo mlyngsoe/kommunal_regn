@@ -74,10 +74,18 @@ tbody tr:hover{background:#f8fbfb}
 .panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .panel-heading h3{margin:0}
 .map-hint{margin:0;color:var(--muted);font-size:.8rem}
-.ranking-panel .table-scroll{max-height:none}
+.ranking-panel .table-scroll{max-height:225px;overflow:auto}
+.ranking-panel .table-scroll thead th{position:sticky;top:0;z-index:1}
 .ranking-panel table{font-size:.84rem}
 .ranking-panel th,.ranking-panel td{padding:8px}
+.ranking-panel th button{width:auto;padding:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;text-align:inherit;line-height:inherit}
+.ranking-panel th button:hover{color:var(--blue)}
+.sort-indicator{margin-left:4px;color:var(--blue)}
 .ranking-note{margin:12px 2px 0;color:var(--muted);font-size:.82rem}
+.station-excluded{margin-top:14px;padding-top:12px;border-top:1px solid #e2e9ec}
+.station-excluded summary{cursor:pointer;font-weight:650;color:#435966}
+.station-warning{color:#8b4b00;font-size:.78rem}
+.station-select{width:18px;height:18px;padding:0;accent-color:var(--blue)}
 .map-status{margin:9px 2px 0;color:var(--muted);font-size:.8rem}
 .import-note{margin-bottom:0}
 .file-input{font-size:.84rem;padding:8px}
@@ -185,18 +193,23 @@ tbody tr:hover{background:#f8fbfb}
 <section class="card station-card">
 <span class="section-kicker">03 · Stationsanalyse</span>
 <h2>Find repræsentative regnmålere</h2>
-<p class="station-intro">Målestationerne rangeres efter hvor godt deres gennemsnit for hele perioden matcher kommunen, sammen med afstanden til kommunepunktet. Ufuldstændige kommuneår indgår ikke i rangeringen. Konkretåret ændrer ikke rangeringen; det viser stationens nedbør for det valgte år.</p>
+<p class="station-intro">Vælg selv to målestationer fra listen. Stationer med mindst 90 % dækning i alle sammenligningsår rangeres først efter datadækning, derefter nedbørsmatch og afstand. Stationer med lavere dækning vises separat, så du kan vælge dem med en tydelig advarsel.</p>
 <div class="station-toolbar">
 <div class="year-control"><label for="station-year">Konkretår</label><select id="station-year" disabled></select></div>
 <p id="station-status" class="status station-status" aria-live="polite">Hent kommunedata for automatisk at finde de bedste målestationer.</p>
 </div>
 <div id="station-results" class="hidden">
 <p id="station-summary" class="station-summary"></p>
+<p id="station-selection-status" class="status station-status" aria-live="polite"></p>
 <div class="station-workspace">
 <section class="ranking-panel">
-<div class="panel-heading"><h3>Bedste stationsmatches</h3></div>
-<div class="table-scroll"><table><thead><tr><th>#</th><th>Målestation</th><th>Type</th><th>Stationens gennemsnit for perioden (mm/år)</th><th>Afvigelse fra kommunens periodegennemsnit (mm/år)</th><th>Stationens nedbør i konkretåret (mm)</th><th>Datadækning i konkretåret</th><th>Afstand fra kommunepunkt (km)</th><th>År med data til match</th><th>Matchindeks (0–100, højere er bedre)</th></tr></thead><tbody id="station-tbody"></tbody></table></div>
-<p class="ranking-note">Matchindekset vægter forskellen i årsnedbør og afstanden lige. Det er et sammenligningsmål, ikke en sandsynlighed. Kommunepunktet er rødt; stationerne er nummereret på kortet.</p>
+<div class="panel-heading"><h3>Vælg to målestationer</h3></div>
+<div class="table-scroll" tabindex="0" aria-label="Stationsliste, rul for at se flere end fem stationer"><table data-station-sort="eligible"><thead><tr><th>Vælg</th><th>Rang</th><th data-sort-key="name">Målestation</th><th data-sort-key="coveragePct">Periode-dækning (gennemsnit / laveste år)</th><th data-sort-key="comparisonYearsWithData">År med data til match</th><th data-sort-key="periodMeanMm">Periodegennemsnit (mm/år)</th><th data-sort-key="deviation">Afvigelse fra kommunen (mm/år)</th><th data-sort-key="yearMm">Nedbør i konkretåret (mm)</th><th data-sort-key="yearCoveragePct">Dækning i konkretåret</th><th data-sort-key="distance">Afstand (km)</th></tr></thead><tbody id="station-tbody"></tbody></table></div>
+<details class="station-excluded" id="station-excluded">
+<summary id="station-excluded-summary">Stationer med lav datadækning</summary>
+<div class="table-scroll" tabindex="0" aria-label="Stationer med lav dækning, rul for at se flere end fem stationer"><table data-station-sort="excluded"><thead><tr><th>Vælg</th><th data-sort-key="name">Målestation</th><th data-sort-key="coveragePct">Periode-dækning (gennemsnit / laveste år)</th><th data-sort-key="comparisonYearsWithData">År med data til match</th><th data-sort-key="periodMeanMm">Periodegennemsnit (mm/år)</th><th data-sort-key="yearCoveragePct">Dækning i konkretåret</th><th data-sort-key="distance">Afstand (km)</th><th data-sort-key="exclusionReason">Bemærkning</th></tr></thead><tbody id="station-excluded-tbody"></tbody></table></div>
+</details>
+<p class="ranking-note">Klik på en kolonneoverskrift for at sortere; klik igen for at vende sorteringsretningen. Periodedækning bygger på DMI’s årlige antal observationer; en station skal have mindst 90 % dækning i hvert sammenligningsår for at stå på hovedlisten. Et valg fra listen med lav dækning tilsidesætter denne grænse. Kommunepunktet er rødt; valgte stationer er nummereret på kortet.</p>
 </section>
 <section class="map-panel">
 <div class="panel-heading"><h3>Kort og lag</h3><p class="map-hint">Vælg baggrund og kommunegrænse i lagmenuen.</p></div>
@@ -217,9 +230,9 @@ tbody tr:hover{background:#f8fbfb}
 <p>Værktøjet henter daglige nedbørsværdier fra DMI’s Climate Data API for den valgte kommune og periode. Årsnedbøren beregnes som summen af årets daglige værdier i millimeter. Gennemsnittet er det aritmetiske gennemsnit af de viste års summer.</p>
 <p>Dage uden en numerisk værdi tælles ikke med i summen. Derfor kan en årssum med manglende dage være lavere end den faktiske nedbør. Skudår regnes med 366 forventede dage; øvrige år med 365.</p>
 <h3>Valg af regnmålere</h3>
-<p>Når kommunedata er hentet, hentes målestationernes årsværdier for hele det kommunale årsspænd. Kommuneår med mindst 90 % datadækning indgår i sammenligningen; ufuldstændige år indgår ikke, så igangværende år ikke udelukker alle stationer. En station skal have gyldige nedbørsværdier for hvert sammenligningsår med mindst 90 % af årets dage. Kommunens gennemsnitlige årsnedbør og stationens gennemsnitlige årsnedbør beregnes over de samme år. Konkretåret ændrer ikke stationsrangeringen; det viser i stedet stationens nedbør og datadækning for det specifikke år, også hvis året endnu ikke er fuldt. Kun stationer inden for 100 km af DMI’s repræsentative kommunepunkt medregnes; afstand beregnes som storcirkelafstand.</p>
-<p>De tre bedste matches rangeres med et matchindeks: 100 minus halvdelen af den procentvise forskel i periodegennemsnit på en fast 100 mm/år skala og halvdelen af afstanden på en fast 100 km skala. Hver del af indekset begrænses til intervallet 0–100; et højere indeks er bedre. Skalaerne er sammenligningsvalg, ikke en sandsynlighed for repræsentativitet. Tabellen viser periodegennemsnittet, konkretårets værdi og datadækning samt afstanden. Kortet viser målestationerne med en interaktiv kortbaggrund, som kan skiftes mellem ortofoto og OpenStreetMap. Laget “Øvrige egnede målestationer” viser andre stationer end de tre bedste som små prikker; hold musen over en station for dens oplysninger. Baggrundskort kræver internetadgang. Kommunepunktet er en tilnærmelse, ikke en kommunegrænse.</p>
-<p>CSV-downloadet indeholder én række pr. år med kommunens nedbør og nedbør, datadækning og matchoplysninger for alle tre bedste stationer. Ufuldstændige år er med i filen, selv om de udelades fra stationsrangeringen. Filen er semikolonsepareret med dansk decimalkomma og UTF-8-kodning.</p>
+<p>Når kommunedata er hentet, hentes målestationernes årsværdier for hele det kommunale årsspænd. Kommuneår med mindst 90 % datadækning indgår i sammenligningen; ufuldstændige år indgår ikke, så igangværende år ikke udelukker alle stationer. En station står på hovedlisten, hvis den har gyldige nedbørsværdier og mindst 90 % dækning i hvert sammenligningsår. Andre stationer inden for 100 km vises særskilt med årsag til den lave dækning; de kan vælges, men valget tilsidesætter dækningsgrænsen. Stationer uden nogen årsværdi i hele perioden vises ikke som valgmulighed. Hovedlisten sorteres efter gennemsnitlig dækning i sammenligningsårene (højeste først), nedbørsafvigelse fra kommunens periodegennemsnit (laveste først) og afstand (korteste først). Stationer på hovedlisten har data for alle sammenligningsår; på den særskilte liste kan periodegennemsnit og nedbørsafvigelse være beregnet over færre år, hvilket vises som antal år med data og gør match mindre sammenligneligt. Denne liste sorteres efter dækning og afstand, da nedbørsmatch ikke kan sammenlignes retvisende med forskellige dataår. For de valgte stationer kontrolleres konkretårets daglige værdier særskilt: dækningsprocenten tæller dage med numerisk værdi og uden DMI-invaliditetsflag, og manglende/ugyldige datoer, dubletter og DMI-kontrolstatus vises i tabelværktøjstip og CSV. Årsgennemsnit og periodedækning bygger fortsat på DMI’s årsværdier. Kun stationer inden for 100 km af DMI’s repræsentative kommunepunkt medregnes; afstand beregnes som storcirkelafstand.</p>
+<p>Kolonneoverskrifterne i begge stationslister kan bruges til at sortere efter station, datadækning, antal sammenligningsår, nedbør, afvigelse, afstand og eventuelle udelukkelsesgrunde. Klik én gang for stigende sortering og igen for faldende sortering; aktiv retning vises ved overskriften. Sorteringen ændrer kun rækkefølgen i listen, ikke stationernes berettigelse, beregninger eller valg. Listerne viser cirka fem rækker ad gangen og kan rulles for at se flere stationer.</p>
+<p>Brugeren kan vælge op til to stationer. Kortet fremhæver de valgte stationer, og CSV-downloadet indeholder kun de valgte stationer. Kortet viser stationerne med en interaktiv baggrund, som kan skiftes mellem ortofoto og OpenStreetMap. Baggrundskort kræver internetadgang. Kommunepunktet er en tilnærmelse, ikke en kommunegrænse.</p>
 <h3>Datakvalitet</h3>
 <p>Farvemærket viser datadækningen: <span class="quality quality-good">God</span> mindst 99 %, <span class="quality quality-medium">Middel</span> mindst 90 % og under 99 %, og <span class="quality quality-low">Lav</span> under 90 %. Dækningen er antallet af dage med en numerisk værdi divideret med årets forventede antal dage.</p>
 <p>Mærket bygger på dækning, ikke på en selvstændig kvalitetsvurdering af målingerne. Hold musen over mærket (eller fokuser det med tastaturet) for at se dækningstal og DMI’s kontrolstatus. DMI-status vises separat og ændrer ikke farvemærket. Hvis data er importeret fra en CSV uden kvalitetsoplysninger eller vises som eksempeldata, står der “Ikke oplyst”.</p>
@@ -280,7 +293,12 @@ let stationLeafletMap=null;
 const municipalityBoundaryGeoJsonUrl='https://raw.githubusercontent.com/magnuslarsen/geoJSON-Danish-municipalities/3a3d918f9c193687aedd0dde7ebf0787edf43af7/municipalities/municipalities.geojson';
 let municipalityBoundaryGeoJsonPromise=null;
 let stationPeriodCache=null;
+const stationDailyCache=new Map();
 let exportStationResult=null;
+const stationSortState={
+ eligible:{key:'coveragePct',direction:'desc'},
+ excluded:{key:'coveragePct',direction:'desc'}
+};
 const status=document.getElementById('status');
 const startInput=document.getElementById('start');
 const endInput=document.getElementById('end');
@@ -366,12 +384,12 @@ async function findStationMatches(periodRows,dataYears,center,municipalityName){
  for(const feature of valueFeatures){
   const properties=feature.properties||{},stationId=properties.stationId;
   const year=Number(properties.from?.slice(0,4));
-  if(!dataExpectedDaysByYear.has(year)||properties.validity===false||!Number.isFinite(properties.value))continue;
+  if(!dataExpectedDaysByYear.has(year)||!Number.isFinite(properties.value))continue;
   const station=stationsById.get(stationId);
   if(!station)continue;
   const validDays=Number(properties.noValuesInCalculation);
   const expectedDays=dataExpectedDaysByYear.get(year);
-  if(!Number.isFinite(validDays)||validDays<=0)continue;
+  if(!Number.isFinite(validDays)||validDays<0)continue;
   if(!Array.isArray(feature.geometry?.coordinates))continue;
   let annualValues=valuesByStation.get(stationId);
   if(!annualValues){annualValues=new Map();valuesByStation.set(stationId,annualValues)}
@@ -380,61 +398,218 @@ async function findStationMatches(periodRows,dataYears,center,municipalityName){
   if(!previous||calculatedAt>previous.calculatedAt){
    annualValues.set(year,{
     mm:properties.value,validDays,expectedDays,calculatedAt,
+    validity:properties.validity!==false&&validDays>0,
     qcStatus:properties.qcStatus||'',coordinates:feature.geometry.coordinates
    });
   }
  }
- const candidates=[];
- let completeStationCount=0;
- let withinRadiusStationCount=0;
+ const eligibleCandidates=[],excludedCandidates=[];
  for(const [stationId,annualValues] of valuesByStation){
-  if(years.some(year=>{
-   const value=annualValues.get(year);
-   return !value||value.validDays<expectedDaysByYear.get(year)*0.9;
-  }))continue;
-  completeStationCount++;
   const station=stationsById.get(stationId);
-  const stationMean=years.reduce((sum,year)=>sum+annualValues.get(year).mm,0)/years.length;
-  const latestYear=Math.max(...years);
-  const coordinates=annualValues.get(latestYear).coordinates;
+  if(!station)continue;
+  const stationValues=[...annualValues.values()];
+  const coordinates=stationValues.length
+   ?stationValues.sort((a,b)=>b.calculatedAt.localeCompare(a.calculatedAt))[0].coordinates
+   :station.geometry?.coordinates;
+  if(!Array.isArray(coordinates))continue;
   const distance=distanceKm(center,coordinates);
   if(distance>radiusKm)continue;
-  withinRadiusStationCount++;
-  candidates.push({
+  const annualCoverage=years.map(year=>{
+   const value=annualValues.get(year);
+   return value?.validity?Math.min(value.validDays/value.expectedDays,1):0;
+  });
+  const coveragePct=annualCoverage.reduce((sum,coverage)=>sum+coverage,0)/years.length*100;
+  const minCoveragePct=Math.min(...annualCoverage)*100;
+  const periodValues=years
+   .map(year=>annualValues.get(year))
+   .filter(value=>value?.validity);
+  const stationMean=periodValues.length
+   ?periodValues.reduce((sum,value)=>sum+value.mm,0)/periodValues.length:NaN;
+  const hasCompletePeriod=years.every(year=>{
+   const value=annualValues.get(year);
+   return value?.validity&&value.validDays>=expectedDaysByYear.get(year)*0.9;
+  });
+  const candidate={
    stationId,name:station.properties.name||`Station ${stationId}`,type:station.properties.type||'Ikke oplyst',
    periodMeanMm:stationMean,deviation:Math.abs(stationMean-municipalityMean),distance,
-   yearValues:annualValues,coordinates
-  });
+   yearValues:annualValues,coordinates,coveragePct,minCoveragePct,
+   comparisonYearsWithData:periodValues.length,eligible:hasCompletePeriod,
+   exclusionReason:hasCompletePeriod?'':periodValues.length<years.length
+    ?'Mangler gyldige data i et eller flere sammenligningsår'
+    :'Under 90 % dækning i mindst ét sammenligningsår'
+  };
+  (hasCompletePeriod?eligibleCandidates:excludedCandidates).push(candidate);
  }
- if(!candidates.length){
-  const yearlyCounts=years.map(year=>{
-   const count=[...valuesByStation.values()].filter(annualValues=>{
-    const value=annualValues.get(year);
-    return value&&value.validDays>=expectedDaysByYear.get(year)*0.9;
-   }).length;
-   return `${year}: ${count}`;
-  }).join(', ');
-  if(!completeStationCount){
-   throw Error(`Ingen stationer har gyldige værdier med mindst 90 % dækning i alle ${years.length} kommuneår med tilstrækkelige kommunedata. Egnede stationer pr. sammenligningsår: ${yearlyCounts}.`);
-  }
-  if(!withinRadiusStationCount){
-   throw Error(`${completeStationCount} stationer dækkede hele perioden med mindst 90 % data pr. år, men ingen lå inden for ${radiusKm} km.`);
-  }
-  throw Error(`Der blev ikke fundet egnede målestationer. Egnede stationer pr. år: ${yearlyCounts}.`);
+ if(!eligibleCandidates.length&&!excludedCandidates.length){
+  throw Error(`Ingen målestationer med nedbørsdata blev fundet inden for ${radiusKm} km.`);
  }
- for(const candidate of candidates){
-  const rainPenalty=Math.min(candidate.deviation/100,1);
-  const distancePenalty=Math.min(candidate.distance/radiusKm,1);
-  candidate.score=100*(1-(rainPenalty+distancePenalty)/2);
- }
- candidates.sort((a,b)=>b.score-a.score||a.deviation-b.deviation||a.distance-b.distance);
+ const compareByCoverage=(a,b)=>b.coveragePct-a.coveragePct;
+ const compareCandidates=(a,b)=>compareByCoverage(a,b)||
+  (Number.isFinite(a.deviation)?a.deviation:Infinity)-(Number.isFinite(b.deviation)?b.deviation:Infinity)||
+  a.distance-b.distance;
+ eligibleCandidates.sort(compareCandidates);
+ excludedCandidates.sort((a,b)=>compareByCoverage(a,b)||a.distance-b.distance);
+ eligibleCandidates.forEach((candidate,index)=>{candidate.rankingIndex=index+1});
  return {
   municipality:municipalityName,firstYear,lastYear,periodMeanMm:municipalityMean,years,dataYears,center,
-  candidates:candidates.slice(0,3),otherCandidates:candidates.slice(3),candidateCount:candidates.length,radiusKm
+  candidates:eligibleCandidates,excludedCandidates,selectedStationIds:[],
+  candidateCount:eligibleCandidates.length,
+  noAnnualDataStationCount:[...stationsById.keys()].filter(stationId=>!valuesByStation.has(stationId)).length,
+  radiusKm
  };
 }
+async function fetchStationDailySummary(stationId,year){
+ const expectedDays=(Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000;
+ const features=await fetchFeatures('stationValue',{
+  stationId,parameterId:'acc_precip',timeResolution:'day',
+  datetime:`${year-1}-12-30T00:00:00Z/${year+1}-01-02T00:00:00Z`,limit:'1000'
+ });
+ const recordsByDate=new Map();
+ let duplicateDates=0;
+ for(const feature of features){
+  const properties=feature.properties||{};
+  const date=properties.from?.slice(0,10);
+  if(!date||!date.startsWith(`${year}-`))continue;
+  const previous=recordsByDate.get(date);
+  const calculatedAt=properties.calculatedAt||properties.created||'';
+  if(previous){
+   duplicateDates++;
+   if(calculatedAt<=previous.calculatedAt)continue;
+  }
+  recordsByDate.set(date,{
+   value:properties.value,validity:properties.validity!==false,
+   qcStatus:properties.qcStatus||'',calculatedAt
+  });
+ }
+ const validRecords=[...recordsByDate.values()].filter(record=>
+  record.validity&&Number.isFinite(record.value)
+ );
+ const validDates=new Set();
+ const invalidDates=[];
+ for(const [date,record] of recordsByDate){
+  if(record.validity&&Number.isFinite(record.value))validDates.add(date);
+  else invalidDates.push(date);
+ }
+ const missingDates=[];
+ for(let day=1;day<=expectedDays;day++){
+  const date=new Date(Date.UTC(year,0,day)).toISOString().slice(0,10);
+  if(!validDates.has(date))missingDates.push(date);
+ }
+ return {
+  year,expectedDays,validDays:validDates.size,
+  sum:validRecords.reduce((total,record)=>total+record.value,0),
+  duplicateDates,missingDates,invalidDates,
+  qcStatuses:[...new Set(validRecords.map(record=>record.qcStatus).filter(Boolean))]
+ };
+}
+function getStationDailySummary(stationId,year){
+ const key=`${stationId}:${year}`;
+ if(!stationDailyCache.has(key)){
+  const request=fetchStationDailySummary(stationId,year).catch(error=>{
+   stationDailyCache.delete(key);
+   throw error;
+  });
+  stationDailyCache.set(key,request);
+ }
+ return stationDailyCache.get(key);
+}
+function stationSortValue(candidate,key,result){
+ const annual=candidate.yearValues.get(result.year);
+ switch(key){
+  case 'name':return candidate.name;
+  case 'coveragePct':return candidate.coveragePct;
+  case 'comparisonYearsWithData':return candidate.comparisonYearsWithData;
+  case 'periodMeanMm':return candidate.periodMeanMm;
+  case 'deviation':return candidate.deviation;
+  case 'yearMm':return candidate.dailyYear?.sum??candidate.yearMm;
+  case 'yearCoveragePct':{
+   const validDays=candidate.dailyYear?.validDays??candidate.yearValidDays;
+   const expectedDays=candidate.dailyYear?.expectedDays??candidate.yearExpectedDays;
+   return expectedDays>0?validDays/expectedDays*100:NaN;
+  }
+  case 'distance':return candidate.distance;
+  case 'exclusionReason':return candidate.exclusionReason;
+  default:return annual?.mm;
+ }
+}
+function compareStationCandidates(candidates,listName,result){
+ const {key,direction}=stationSortState[listName];
+ const multiplier=direction==='asc'?1:-1;
+ return [...candidates].sort((a,b)=>{
+  const aValue=stationSortValue(a,key,result),bValue=stationSortValue(b,key,result);
+  if(typeof aValue==='string'||typeof bValue==='string'){
+   return String(aValue??'').localeCompare(String(bValue??''),'da')*multiplier;
+  }
+  const aNumber=Number(aValue),bNumber=Number(bValue);
+  const aValid=Number.isFinite(aNumber),bValid=Number.isFinite(bNumber);
+  if(!aValid||!bValid)return aValid?-1:bValid?1:0;
+  return (aNumber-bNumber)*multiplier;
+ });
+}
+function reorderStationTable(listName,result){
+ const table=document.querySelector(`table[data-station-sort="${listName}"]`);
+ const tbody=table?.tBodies[0];
+ if(!tbody)return;
+ const candidates=listName==='eligible'?result.candidates:result.excludedCandidates;
+ const rowsById=new Map([...tbody.rows].map(row=>[row.dataset.stationId,row]));
+ for(const candidate of compareStationCandidates(candidates,listName,result)){
+  const row=rowsById.get(candidate.stationId);
+  if(row)tbody.append(row);
+ }
+}
+function updateStationSortHeaders(){
+ for(const table of document.querySelectorAll('table[data-station-sort]')){
+  const state=stationSortState[table.dataset.stationSort];
+  for(const header of table.querySelectorAll('th[data-sort-key]')){
+   const active=header.dataset.sortKey===state.key;
+   header.setAttribute('aria-sort',active?state.direction==='asc'?'ascending':'descending':'none');
+   const button=header.querySelector('button');
+   const indicator=header.querySelector('.sort-indicator');
+   if(indicator)indicator.textContent=active?(state.direction==='asc'?'↑':'↓'):'↕';
+   if(button)button.setAttribute('aria-label',`${header.dataset.label}; ${active?`sorteret ${state.direction==='asc'?'stigende':'faldende'}`:'klik for at sortere'}`);
+  }
+ }
+}
+function initializeStationSorting(){
+ for(const table of document.querySelectorAll('table[data-station-sort]')){
+  for(const header of table.querySelectorAll('th[data-sort-key]')){
+   const label=header.textContent.trim();
+   header.dataset.label=label;
+   const button=document.createElement('button');
+   button.type='button';
+   button.textContent=label;
+   const indicator=document.createElement('span');
+   indicator.className='sort-indicator';
+   indicator.setAttribute('aria-hidden','true');
+   button.append(indicator);
+   header.textContent='';
+   header.append(button);
+  }
+ }
+ updateStationSortHeaders();
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('table[data-station-sort] th[data-sort-key] button');
+  if(!button)return;
+  const header=button.closest('th'),table=button.closest('table');
+  const listName=table.dataset.stationSort,state=stationSortState[listName];
+  const key=header.dataset.sortKey;
+  if(state.key===key)state.direction=state.direction==='asc'?'desc':'asc';
+  else{
+   state.key=key;
+   state.direction='asc';
+  }
+  updateStationSortHeaders();
+  if(exportStationResult)reorderStationTable(listName,exportStationResult);
+ });
+}
+initializeStationSorting();
 function stationDetails(candidate,result){
- return `<strong>${escapeHtml(candidate.name)} (${escapeHtml(candidate.stationId)})</strong><br>Type: ${escapeHtml(candidate.type)}<br>Periodegennemsnit: ${fmt(candidate.periodMeanMm)} mm/år<br>${result.year}: ${Number.isFinite(candidate.yearMm)?fmt(candidate.yearMm)+' mm':'ingen måling'} (${candidate.yearValidDays}/${candidate.yearExpectedDays} dage)<br>${fmt(candidate.distance)} km fra kommunepunktet<br>Matchindeks: ${fmt(candidate.score,1)}`;
+ const daily=candidate.dailyYear;
+ const yearMm=daily?daily.sum:candidate.yearMm;
+ const yearValidDays=daily?daily.validDays:candidate.yearValidDays;
+ const yearExpectedDays=daily?daily.expectedDays:candidate.yearExpectedDays;
+ const periodMean=Number.isFinite(candidate.periodMeanMm)?fmt(candidate.periodMeanMm):'ikke tilgængeligt';
+ return `<strong>${escapeHtml(candidate.name)} (${escapeHtml(candidate.stationId)})</strong><br>Type: ${escapeHtml(candidate.type)}<br>Periodedækning: ${fmt(candidate.coveragePct)} % i gennemsnit; laveste år ${fmt(candidate.minCoveragePct)} %<br>Periodegennemsnit: ${periodMean} mm/år<br>${result.year}: ${Number.isFinite(yearMm)?fmt(yearMm)+' mm':'ingen måling'} (${yearValidDays}/${yearExpectedDays} dage)<br>${fmt(candidate.distance)} km fra kommunepunktet`;
 }
 function renderStationMap(result){
  const map=document.getElementById('station-map');
@@ -462,9 +637,14 @@ function renderStationMap(result){
  }
  const municipalityBoundary=L.featureGroup().addTo(currentMap);
  const otherStationsLayer=L.featureGroup();
+ const otherStationsBounds=L.latLngBounds([]);
+ const selectedIds=new Set(result.selectedStationIds);
+ const allCandidates=[...result.candidates,...result.excludedCandidates];
+ const selectedCandidates=allCandidates.filter(candidate=>selectedIds.has(candidate.stationId));
+ const otherCandidates=result.candidates.filter(candidate=>!selectedIds.has(candidate.stationId));
  const overlays={'Kommunegrænse':municipalityBoundary};
- if(result.otherCandidates.length){
-  overlays[`Øvrige egnede målestationer (${result.otherCandidates.length})`]=otherStationsLayer;
+ if(otherCandidates.length){
+  overlays[`Andre egnede målestationer (${otherCandidates.length})`]=otherStationsLayer;
  }
  imagery.addTo(stationLeafletMap);
  L.control.layers(
@@ -477,7 +657,7 @@ function renderStationMap(result){
  L.circleMarker(center,{radius:9,color:'#fff',weight:3,fillColor:'#d14836',fillOpacity:1})
   .bindPopup(`<strong>${escapeHtml(result.municipality)} – kommunepunkt</strong>`)
   .addTo(stationLeafletMap);
- result.candidates.forEach((candidate,index)=>{
+ selectedCandidates.forEach((candidate,index)=>{
   const station=L.latLng(candidate.coordinates[1],candidate.coordinates[0]);
   bounds.extend(station);
   L.polyline([center,station],{color:'#082d4f',weight:2,opacity:.75}).addTo(stationLeafletMap);
@@ -487,11 +667,12 @@ function renderStationMap(result){
   });
   L.marker(station,{icon,alt:`${index+1}. ${candidate.name}`})
    .bindTooltip(stationDetails(candidate,result),{className:'station-tooltip',sticky:true})
-   .bindPopup(`<strong>${index+1}. bedste match</strong><br>${stationDetails(candidate,result)}`)
+   .bindPopup(`<strong>Valgt station ${index+1}</strong><br>${stationDetails(candidate,result)}`)
    .addTo(stationLeafletMap);
  });
- result.otherCandidates.forEach(candidate=>{
+ otherCandidates.forEach(candidate=>{
   const station=L.latLng(candidate.coordinates[1],candidate.coordinates[0]);
+  otherStationsBounds.extend(station);
   L.circleMarker(station,{radius:4,className:'other-station-marker'})
    .bindTooltip(stationDetails(candidate,result),{className:'station-tooltip',sticky:true})
    .addTo(otherStationsLayer);
@@ -541,33 +722,141 @@ function renderStationMap(result){
 function renderStationMatches(result){
  const tbody=document.getElementById('station-tbody');
  tbody.textContent='';
- for(const [index,candidate] of result.candidates.entries()){
-  const row=document.createElement('tr');
-  const values=[
-    index+1,`${candidate.name} (${candidate.stationId})`,candidate.type,fmt(candidate.periodMeanMm),fmt(candidate.deviation),
-    Number.isFinite(candidate.yearMm)?fmt(candidate.yearMm):'Ikke tilgængelig',
-    candidate.yearValidDays?`${candidate.yearValidDays}/${candidate.yearExpectedDays} dage`:'Ingen data',
-    fmt(candidate.distance),`${result.years.length}/${result.years.length}`,fmt(candidate.score,1)
-  ];
+ const excludedTbody=document.getElementById('station-excluded-tbody');
+ excludedTbody.textContent='';
+ const eligibleCandidates=compareStationCandidates(result.candidates,'eligible',result);
+ const excludedCandidates=compareStationCandidates(result.excludedCandidates,'excluded',result);
+ const selectedIds=new Set(result.selectedStationIds);
+ const selectedYearCoverage=candidate=>{
+  const validDays=candidate.dailyYear?.validDays??candidate.yearValidDays;
+  const expectedDays=candidate.dailyYear?.expectedDays??candidate.yearExpectedDays;
+  return expectedDays>0?validDays/expectedDays*100:0;
+ };
+ const createSelectionCell=(candidate,warning)=>{
+  const cell=document.createElement('td');
+  const checkbox=document.createElement('input');
+  checkbox.type='checkbox';
+  checkbox.className='station-select';
+  checkbox.checked=selectedIds.has(candidate.stationId);
+  checkbox.disabled=!checkbox.checked&&selectedIds.size>=2;
+  checkbox.setAttribute('aria-label',`Vælg ${candidate.name} (${candidate.stationId})${warning?'; tilsidesæt dækningsgrænsen':''}`);
+  checkbox.addEventListener('change',()=>{
+   if(checkbox.checked){
+    if(result.selectedStationIds.length>=2){checkbox.checked=false;return}
+    result.selectedStationIds.push(candidate.stationId);
+   }else{
+    result.selectedStationIds=result.selectedStationIds.filter(id=>id!==candidate.stationId);
+   }
+   if(stationPeriodCache)stationPeriodCache.selectedStationIds=[...result.selectedStationIds];
+   renderStationMatches(result);
+  });
+  cell.append(checkbox);
+  return cell;
+ };
+ const addCells=(row,values)=>{
   for(const value of values){
    const cell=document.createElement('td');
    cell.textContent=value;
    row.append(cell);
   }
+ };
+ for(const [index,candidate] of eligibleCandidates.entries()){
+  const row=document.createElement('tr');
+  row.dataset.stationId=candidate.stationId;
+  row.append(createSelectionCell(candidate,false));
+  addCells(row,[
+   candidate.rankingIndex??index+1,`${candidate.name} (${candidate.stationId})`,
+   `${fmt(candidate.coveragePct)} % / ${fmt(candidate.minCoveragePct)} %`,
+   `${candidate.comparisonYearsWithData}/${result.years.length}`,
+   Number.isFinite(candidate.periodMeanMm)?fmt(candidate.periodMeanMm):'Ikke tilgængelig',
+   Number.isFinite(candidate.deviation)?fmt(candidate.deviation):'Ikke tilgængelig',
+   Number.isFinite(candidate.dailyYear?.sum??candidate.yearMm)?fmt(candidate.dailyYear?.sum??candidate.yearMm):'Ikke tilgængelig',
+   `${fmt(selectedYearCoverage(candidate))} % (${candidate.dailyYear?.validDays??candidate.yearValidDays}/${candidate.dailyYear?.expectedDays??candidate.yearExpectedDays} dage)`,
+   fmt(candidate.distance)
+  ]);
+  if(candidate.dailyYear){
+   row.children[8].title=[
+    `Daglige observationer kontrolleret fra DMI.`,
+    `Manglende/ugyldige datoer: ${candidate.dailyYear.missingDates.join(', ')||'ingen'}.`,
+    `Dubletdatoer: ${candidate.dailyYear.duplicateDates}.`,
+    `DMI-kontrol: ${candidate.dailyYear.qcStatuses.join(', ')||'ikke oplyst'}.`
+   ].join(' ');
+  }
   tbody.append(row);
  }
+ for(const candidate of excludedCandidates){
+  const row=document.createElement('tr');
+  row.dataset.stationId=candidate.stationId;
+  row.append(createSelectionCell(candidate,true));
+  addCells(row,[
+   `${candidate.name} (${candidate.stationId})`,
+   `${fmt(candidate.coveragePct)} % / ${fmt(candidate.minCoveragePct)} %`,
+   `${candidate.comparisonYearsWithData}/${result.years.length}`,
+   Number.isFinite(candidate.periodMeanMm)?fmt(candidate.periodMeanMm):'Ikke tilgængelig',
+   `${fmt(selectedYearCoverage(candidate))} % (${candidate.dailyYear?.validDays??candidate.yearValidDays}/${candidate.dailyYear?.expectedDays??candidate.yearExpectedDays} dage)`,
+   fmt(candidate.distance),candidate.exclusionReason
+  ]);
+  if(candidate.dailyYear){
+   row.children[5].title=`Manglende/ugyldige datoer: ${candidate.dailyYear.missingDates.join(', ')||'ingen'}. Dubletdatoer: ${candidate.dailyYear.duplicateDates}.`;
+  }
+  excludedTbody.append(row);
+ }
+ const excludedDetails=document.getElementById('station-excluded');
+ excludedDetails.classList.toggle('hidden',!result.excludedCandidates.length);
+ document.getElementById('station-excluded-summary').textContent=
+  `Stationer under dækningsgrænsen (${result.excludedCandidates.length}) – valg tilsidesætter grænsen`;
+ const selectedCandidates=[...result.candidates,...result.excludedCandidates]
+  .filter(candidate=>selectedIds.has(candidate.stationId));
+ const dailyPending=selectedCandidates.some(candidate=>!candidate.dailyYear&&!candidate.dailyError);
+ const dailyFailures=selectedCandidates.filter(candidate=>candidate.dailyError);
+ const warningCandidates=selectedCandidates.filter(candidate=>
+  !candidate.eligible||selectedYearCoverage(candidate)<90||candidate.dailyError
+ );
+ const selectionMessage=`${selectedIds.size} af 2 stationer valgt.`;
+ document.getElementById('station-selection-status').textContent=warningCandidates.length
+  ?`${selectionMessage} Advarsel: mindst én valgt station har under 90 % dækning i sammenligningsperioden eller konkretåret, eller daglige data kunne ikke kontrolleres.`
+  :dailyPending?`${selectionMessage} Kontrollerer daglige DMI-observationer for de valgte stationer.`
+  :selectedIds.size===2?`${selectionMessage} Daglig dækning for konkretåret er kontrolleret.`
+  :selectedIds.size===1?`${selectionMessage} Vælg en station mere.`
+  :`${selectionMessage} Vælg stationer for at kontrollere daglige DMI-data.`;
+ document.getElementById('export').disabled=selectedIds.size!==2||dailyPending;
+ document.getElementById('export-status').textContent=selectedIds.size!==2
+  ?'Vælg to stationer for at aktivere CSV-download.'
+  :dailyPending?'Kontrollerer daglige DMI-observationer, før CSV-downloadet aktiveres.'
+  :dailyFailures.length?'Daglig kontrol mislykkedes for mindst én station; CSV markerer dette og bruger DMI’s årsværdi for konkretåret.'
+  :'CSV-downloadet indeholder de to valgte stationer og daglig kontrol for konkretåret.';
  document.getElementById('station-summary').textContent=
-  `${result.municipality}, ${result.firstYear}–${result.lastYear}: kommunens periodegennemsnit er ${fmt(result.periodMeanMm)} mm/år over ${result.years.length} år med mindst 90 % kommunedækning.${result.excludedYears.length?` Udeladte ufuldstændige kommuneår: ${result.excludedYears.join(', ')}.`:''} Konkretår ${result.year}: kommunens gennemsnit ${fmt(result.municipalityYearMm)} mm; stationernes nedbør og datadækning står i tabellen. Rangeringen er baseret på de fælles år i perioden. Vist ${result.candidates.length} af ${result.candidateCount} egnede målestationer inden for ${result.radiusKm} km.`;
+  `${result.municipality}, ${result.firstYear}–${result.lastYear}: kommunens periodegennemsnit er ${fmt(result.periodMeanMm)} mm/år over ${result.years.length} år med mindst 90 % kommunedækning.${result.excludedYears.length?` Udeladte ufuldstændige kommuneår: ${result.excludedYears.join(', ')}.`:''} ${result.candidates.length} stationer opfylder 90 %-kravet i alle sammenligningsår; ${result.excludedCandidates.length} stationer har lavere eller manglende dækning.${result.noAnnualDataStationCount?` ${result.noAnnualDataStationCount} øvrige stationer havde ingen årsværdi i perioden og vises derfor ikke som valgmulighed.`:''} Stationerne vises inden for ${result.radiusKm} km.`;
  document.getElementById('station-results').classList.remove('hidden');
+ updateStationSortHeaders();
  exportStationResult=result;
- document.getElementById('export').disabled=false;
- document.getElementById('export-status').textContent='';
  try{
   renderStationMap(result);
-  document.getElementById('station-status').textContent=`Fandt ${result.candidates.length} bedste matches.`;
+  document.getElementById('station-status').textContent=`Fandt ${result.candidates.length+result.excludedCandidates.length} målestationer.`;
  }catch(error){
-  document.getElementById('station-status').textContent=`Fandt ${result.candidates.length} bedste matches, men kortet kunne ikke vises: ${error.message}`;
+  document.getElementById('station-status').textContent=`Fandt ${result.candidates.length+result.excludedCandidates.length} stationer, men kortet kunne ikke vises: ${error.message}`;
  }
+ loadSelectedStationDaily(result);
+}
+async function loadSelectedStationDaily(result){
+ const candidates=[...result.candidates,...result.excludedCandidates]
+  .filter(candidate=>result.selectedStationIds.includes(candidate.stationId)&&!candidate.dailyYear&&!candidate.dailyError);
+ if(!candidates.length)return;
+ await Promise.all(candidates.map(async candidate=>{
+  try{
+   candidate.dailyYear=await getStationDailySummary(candidate.stationId,result.year);
+  }catch(error){
+   candidate.dailyError=error.message;
+  }
+ }));
+ if(exportStationResult!==result)return;
+ renderStationMatches(result);
+ const selected=[...result.candidates,...result.excludedCandidates]
+  .filter(candidate=>result.selectedStationIds.includes(candidate.stationId));
+ const failed=selected.filter(candidate=>candidate.dailyError);
+ document.getElementById('station-status').textContent=failed.length
+  ?`DMI’s daglige data kunne ikke kontrolleres for ${failed.map(candidate=>candidate.name).join(', ')}: ${failed.map(candidate=>candidate.dailyError).join('; ')}`
+  :`DMI’s daglige data er kontrolleret for ${selected.length} valgte station(er).`;
 }
 async function loadStationMatches(){
  const requestId=++stationRequestId;
@@ -617,23 +906,27 @@ async function loadStationMatches(){
    )};
   }
   const periodResult=await stationPeriodCache.promise;
+  if(!Array.isArray(stationPeriodCache.selectedStationIds)){
+   stationPeriodCache.selectedStationIds=[...periodResult.selectedStationIds];
+  }
+  const withSelectedYear=candidate=>{
+   const annual=candidate.yearValues.get(year);
+   const expected=(Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000;
+   const valid=annual?.validity===true;
+   return {
+    ...candidate,
+    yearMm:valid?annual.mm:NaN,
+    yearValidDays:valid?annual.validDays:0,
+    yearExpectedDays:annual?.expectedDays||expected,
+    yearQcStatus:annual?.qcStatus||''
+   };
+  };
   const result={
    ...periodResult,year,municipalityYearMm:municipalityYear.mm,
+   selectedStationIds:[...stationPeriodCache.selectedStationIds],
    excludedYears:rows.filter(row=>!periodRows.includes(row)).map(row=>row.year),
-   candidates:periodResult.candidates.map(candidate=>({
-    ...candidate,
-    yearMm:candidate.yearValues.get(year)?.mm,
-    yearValidDays:candidate.yearValues.get(year)?.validDays||0,
-    yearExpectedDays:candidate.yearValues.get(year)?.expectedDays||
-     (Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000
-   })),
-   otherCandidates:periodResult.otherCandidates.map(candidate=>({
-    ...candidate,
-    yearMm:candidate.yearValues.get(year)?.mm,
-    yearValidDays:candidate.yearValues.get(year)?.validDays||0,
-    yearExpectedDays:candidate.yearValues.get(year)?.expectedDays||
-     (Date.UTC(year+1,0,1)-Date.UTC(year,0,1))/86400000
-   }))
+   candidates:periodResult.candidates.map(withSelectedYear),
+   excludedCandidates:periodResult.excludedCandidates.map(withSelectedYear)
   };
   if(requestId===stationRequestId)renderStationMatches(result);
  }catch(error){
@@ -841,13 +1134,28 @@ document.getElementById('export').onclick=()=>{
   return;
  }
  const result=exportStationResult;
- const stationColumns=result.candidates.flatMap((candidate,index)=>{
-  const prefix=`station_${index+1}`;
-  return [
-   `${prefix}_id`,`${prefix}_name`,`${prefix}_period_mean_mm_per_year`,
-   `${prefix}_deviation_mm_per_year`,`${prefix}_distance_km`,`${prefix}_match_index`,
-   `${prefix}_annual_sum_mm`,`${prefix}_observed_days`,`${prefix}_expected_days`,
-   `${prefix}_coverage_pct`,`${prefix}_qc_status`
+  const selectedCandidates=result.selectedStationIds.map(stationId=>
+   [...result.candidates,...result.excludedCandidates].find(candidate=>candidate.stationId===stationId)
+  ).filter(Boolean);
+  if(selectedCandidates.length!==2){
+   document.getElementById('export-status').textContent='Vælg præcis to målestationer, før du downloader CSV.';
+   return;
+  }
+  if(selectedCandidates.some(candidate=>!candidate.dailyYear&&!candidate.dailyError)){
+   document.getElementById('export-status').textContent='Vent, til DMI’s daglige data er kontrolleret for de valgte stationer.';
+   return;
+  }
+  const stationColumns=selectedCandidates.flatMap((candidate,index)=>{
+   const prefix=`station_${index+1}`;
+   return [
+    `${prefix}_id`,`${prefix}_name`,`${prefix}_period_coverage_avg_pct`,
+    `${prefix}_period_coverage_min_pct`,`${prefix}_comparison_years_with_data`,
+    `${prefix}_period_mean_mm_per_year`,
+    `${prefix}_deviation_mm_per_year`,`${prefix}_distance_km`,
+    `${prefix}_annual_sum_mm`,`${prefix}_observed_days`,`${prefix}_expected_days`,
+    `${prefix}_coverage_pct`,`${prefix}_daily_missing_dates`,
+    `${prefix}_daily_duplicate_dates`,`${prefix}_daily_qc_status`,
+    `${prefix}_daily_check_status`
   ];
  });
  const headers=[
@@ -868,14 +1176,23 @@ document.getElementById('export').onclick=()=>{
    row.year,municipalityName,row.count>0?csvNumber(row.mm):'',row.count??'',
    row.expected??'',csvNumber(municipalityCoverage),municipalityQc
   ];
-  for(const candidate of result.candidates){
+  for(const candidate of selectedCandidates){
    const annual=candidate.yearValues.get(row.year);
-   const coverage=annual?annual.validDays/annual.expectedDays*100:NaN;
+   const daily=row.year===result.year?candidate.dailyYear:null;
+   const valid=daily?daily.validDays>0:annual?.validity===true;
+   const value=daily?daily.sum:annual?.mm;
+   const observedDays=daily?daily.validDays:valid?annual.validDays:'';
+   const expectedDays=daily?daily.expectedDays:annual?.expectedDays??'';
+   const coverage=daily?daily.validDays/daily.expectedDays*100:
+    valid?observedDays/expectedDays*100:NaN;
    cells.push(
-    candidate.stationId,candidate.name,csvNumber(candidate.periodMeanMm),
-    csvNumber(candidate.deviation),csvNumber(candidate.distance),csvNumber(candidate.score),
-    annual?csvNumber(annual.mm):'',annual?.validDays??'',annual?.expectedDays??'',
-    csvNumber(coverage),annual?.qcStatus||''
+    candidate.stationId,candidate.name,csvNumber(candidate.coveragePct),
+    csvNumber(candidate.minCoveragePct),candidate.comparisonYearsWithData,csvNumber(candidate.periodMeanMm),
+    csvNumber(candidate.deviation),csvNumber(candidate.distance),
+    valid?csvNumber(value):'',observedDays,expectedDays,
+    csvNumber(coverage),daily?.missingDates.join(', ')||'',
+    daily?.duplicateDates??'',daily?(daily.qcStatuses.join(', ')||'ikke oplyst'):annual?.qcStatus||'',
+    daily?'kontrolleret':candidate.dailyError?`fejl: ${candidate.dailyError}`:row.year===result.year?'ikke kontrolleret':''
    );
   }
   lines.push(cells.map(csvCell).join(';'));
